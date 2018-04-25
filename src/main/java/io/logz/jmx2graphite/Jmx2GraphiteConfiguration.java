@@ -1,12 +1,11 @@
 package io.logz.jmx2graphite;
 
-import com.typesafe.config.Config;
-
 import java.net.InetAddress;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.UnknownHostException;
-import java.util.concurrent.TimeUnit;
+
+import com.typesafe.config.Config;
 
 /**
  * @author amesika
@@ -15,36 +14,18 @@ public class Jmx2GraphiteConfiguration {
     
     private String jolokiaFullUrl;
 
-    private Graphite graphite;
-
-    /* Short name of the sampled service, required = false */
-    private String serviceName = null;
-
     /* host of the sampled service */
     private String serviceHost = null;
 
     /* Metrics polling interval in seconds */
     private int metricsPollingIntervalInSeconds;
-    private int graphiteConnectTimeout;
-    private int graphiteSocketTimeout;
-    private int graphiteWriteTimeoutMs;
 
     // Which client should we use
     private MetricClientType metricClientType;
-    private GraphiteProtocol graphiteProtocol;
-
-    public GraphiteProtocol getGraphiteProtocol() {
-        return graphiteProtocol;
-    }
 
     public enum MetricClientType {
         JOLOKIA,
         MBEAN_PLATFORM
-    }
-
-    private class Graphite {
-        public String hostname;
-        public int port;
     }
 
     public Jmx2GraphiteConfiguration(Config config) throws IllegalConfiguration {
@@ -86,30 +67,7 @@ public class Jmx2GraphiteConfiguration {
             }
         }
 
-        graphite = new Graphite();
-        graphite.hostname = config.getString("graphite.hostname");
-        graphite.port = config.getInt("graphite.port");
         metricsPollingIntervalInSeconds = config.getInt("metricsPollingIntervalInSeconds");
-
-        serviceName = config.getString("service.name");
-
-        graphiteConnectTimeout = config.getInt("graphite.connectTimeout");
-        graphiteSocketTimeout = config.getInt("graphite.socketTimeout");
-        graphiteProtocol = getGraphiteProtocol(config);
-        if (config.hasPath("graphite.writeTimeout")) {
-            graphiteWriteTimeoutMs = config.getInt("graphite.writeTimeout");
-        } else {
-            graphiteWriteTimeoutMs = Math.round(0.7f * TimeUnit.SECONDS.toMillis(metricsPollingIntervalInSeconds));
-        }
-    }
-
-    private GraphiteProtocol getGraphiteProtocol(Config config) {
-        String GRAPHITE_PROTOCOL = "graphite.protocol";
-        String protocol = config.hasPath(GRAPHITE_PROTOCOL) ? config.getString(GRAPHITE_PROTOCOL) : null;
-        if (protocol != null) {
-            return GraphiteProtocol.valueOf(protocol.toUpperCase());
-        }
-        return null;
     }
 
     public String getJolokiaFullUrl() {
@@ -118,30 +76,6 @@ public class Jmx2GraphiteConfiguration {
 
     public void setJolokiaFullUrl(String jolokiaFullUrl) {
         this.jolokiaFullUrl = jolokiaFullUrl;
-    }
-
-    public String getGraphiteHostname() {
-        return graphite.hostname;
-    }
-
-    public void setGraphiteHostname(String graphiteHostname) {
-        this.graphite.hostname = graphiteHostname;
-    }
-
-    public int getGraphitePort() {
-        return graphite.port;
-    }
-
-    public void setGraphitePort(int graphitePort) {
-        this.graphite.port = graphitePort;
-    }
-
-    public String getServiceName() {
-        return serviceName;
-    }
-
-    public void setServiceName(String serviceName) {
-        this.serviceName = serviceName;
     }
 
     public String getServiceHost() {
@@ -160,35 +94,11 @@ public class Jmx2GraphiteConfiguration {
         this.metricsPollingIntervalInSeconds = metricsPollingIntervalInSeconds;
     }
 
-    public void setGraphiteConnectTimeout(int graphiteConnectTimeout) {
-        this.graphiteConnectTimeout = graphiteConnectTimeout;
-    }
-
-    public void setGraphiteSocketTimeout(int graphiteSocketTimeout) {
-        this.graphiteSocketTimeout = graphiteSocketTimeout;
-    }
-
-    public void setGraphiteWriteTimeoutMs(int graphiteWriteTimeoutMs) {
-        this.graphiteWriteTimeoutMs = graphiteWriteTimeoutMs;
-    }
-
     public MetricClientType getMetricClientType() {
         return metricClientType;
     }
 
     public void setMetricClientType(MetricClientType metricClientType) {
         this.metricClientType = metricClientType;
-    }
-
-    public int getGraphiteConnectTimeout() {
-        return graphiteConnectTimeout;
-    }
-
-    public int getGraphiteSocketTimeout() {
-        return graphiteSocketTimeout;
-    }
-
-    public int getGraphiteWriteTimeoutMs() {
-        return graphiteWriteTimeoutMs;
     }
 }

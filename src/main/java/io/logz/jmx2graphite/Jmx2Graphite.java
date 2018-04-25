@@ -1,15 +1,16 @@
 package io.logz.jmx2graphite;
 
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import static io.logz.jmx2graphite.Jmx2GraphiteConfiguration.MetricClientType.JOLOKIA;
+import static io.logz.jmx2graphite.Jmx2GraphiteConfiguration.MetricClientType.MBEAN_PLATFORM;
 
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 
-import static io.logz.jmx2graphite.Jmx2GraphiteConfiguration.MetricClientType.JOLOKIA;
-import static io.logz.jmx2graphite.Jmx2GraphiteConfiguration.MetricClientType.MBEAN_PLATFORM;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
 /**
  * @author amesika
@@ -44,7 +45,6 @@ public class Jmx2Graphite {
     }
 
     public void run() {
-        logger.info("Graphite: host = {}, port = {}", conf.getGraphiteHostname(), conf.getGraphitePort());
         enableHangupSupport();
         MetricsPipeline pipeline = new MetricsPipeline(conf, client);
         taskScheduler.scheduleWithFixedDelay(pipeline::pollAndSend, 0, conf.getMetricsPollingIntervalInSeconds(), TimeUnit.SECONDS);

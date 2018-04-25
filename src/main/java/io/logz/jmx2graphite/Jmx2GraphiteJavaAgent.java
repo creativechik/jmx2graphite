@@ -1,6 +1,7 @@
 package io.logz.jmx2graphite;
 
 import com.google.common.base.Splitter;
+import com.google.common.base.Strings;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import org.slf4j.Logger;
@@ -23,13 +24,6 @@ public class Jmx2GraphiteJavaAgent {
 
         Map<String, String> configurationMap = parseArgumentsString(agentArgument);
 
-        if (configurationMap.get(getArgumentConfigurationRepresentation("GRAPHITE_HOSTNAME")) == null) {
-            throw new IllegalConfiguration("GRAPHITE_HOSTNAME must be one of the arguments");
-        }
-        if (configurationMap.get(getArgumentConfigurationRepresentation("SERVICE_NAME")) == null) {
-            throw new IllegalConfiguration("SERVICE_NAME must be one of the arguments");
-        }
-
         Config userConfig = ConfigFactory.parseMap(configurationMap);
         Config fileConfig = ConfigFactory.load("javaagent.conf");
 
@@ -51,40 +45,26 @@ public class Jmx2GraphiteJavaAgent {
     }
 
     private static Map<String, String> parseArgumentsString(String arguments) throws IllegalConfiguration {
-        try {
-            Map<String, String> argumentsMap = new HashMap<>();
-            Map<String, String> keyValues = Splitter.on(';').omitEmptyStrings().withKeyValueSeparator('=').split(arguments);
+        Map<String, String> argumentsMap = new HashMap<>();
+        if (!Strings.isNullOrEmpty(arguments)) {
+            try {
+                Map<String, String> keyValues = Splitter.on(';').omitEmptyStrings().withKeyValueSeparator('=').split(arguments);
 
-            keyValues.forEach((k,v) -> argumentsMap.put(getArgumentConfigurationRepresentation(k),v));
-
-            return argumentsMap;
-
-        } catch (IllegalArgumentException e) {
-            throw new IllegalConfiguration("Java agent arguments must be in form of: key=value;key=value");
+                keyValues.forEach((k,v) -> argumentsMap.put(getArgumentConfigurationRepresentation(k),v));
+            } catch (IllegalArgumentException e) {
+                throw new IllegalConfiguration("Java agent arguments must be in form of: key=value;key=value");
+            }
         }
+        return argumentsMap;
     }
 
     private static String getArgumentConfigurationRepresentation(String key) throws IllegalConfiguration {
 
         switch (key) {
-            case "GRAPHITE_HOSTNAME":
-                return "graphite.hostname";
-            case "GRAPHITE_PORT":
-                return "graphite.port";
-            case "SERVICE_NAME":
-                return "service.name";
             case "SERVICE_HOST":
                 return "service.host";
             case "INTERVAL_IN_SEC":
                 return "metricsPollingIntervalInSeconds";
-            case "GRAPHITE_CONNECT_TIMEOUT":
-                return "graphite.connectTimeout";
-            case "GRAPHITE_SOCKET_TIMEOUT":
-                return "graphite.socketTimeout";
-            case "GRAPHITE_WRITE_TIMEOUT_MS":
-                return "graphite.writeTimeout";
-            case "GRAPHITE_PROTOCOL":
-                return "graphite.protocol";
             default:
                 throw new IllegalConfiguration("Unknown configuration option: " + key);
         }

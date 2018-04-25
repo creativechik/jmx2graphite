@@ -1,15 +1,17 @@
 package io.logz.jmx2graphite;
 
-import com.google.common.base.Stopwatch;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.io.IOException;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.codahale.metrics.Gauge;
+import com.codahale.metrics.MetricRegistry;
+import com.google.common.base.Stopwatch;
 
 /**
  * @author amesika
@@ -17,20 +19,20 @@ import java.util.stream.Collectors;
 
 public class MetricsPipeline {
     private static final Logger logger = LoggerFactory.getLogger(MetricsPipeline.class);
+    private static final MetricRegistry METRIC_REGISTRY = new GaugeMetricRegistry();
 
     private int pollingIntervalSeconds;
 
-    private GraphiteClient graphiteClient;
     private MBeanClient client;
 
     public MetricsPipeline(Jmx2GraphiteConfiguration conf, MBeanClient client) {
-
-        this.graphiteClient = new GraphiteClient(conf.getServiceHost(), conf.getServiceName(), conf.getGraphiteHostname(),
-                                                 conf.getGraphitePort(), conf.getGraphiteConnectTimeout(),
-                                                 conf.getGraphiteSocketTimeout(), conf.getGraphiteWriteTimeoutMs(),
-                                                 conf.getGraphiteProtocol());
         this.client = client;
         this.pollingIntervalSeconds = conf.getMetricsPollingIntervalInSeconds();
+
+        MetricReporters metricReporters = MetricReporters.getInstance(METRIC_REGISTRY);
+        if (!metricReporters.isRunning()) {
+            metricReporters.startAsync();
+        }
     }
 
     private List<MetricValue> poll() {
@@ -59,21 +61,20 @@ public class MetricsPipeline {
         }
     }
 
-    public void pollAndSend()  {
-
+    public void pollAndSend() {
         try {
             List<MetricValue> metrics = poll();
             Stopwatch sw = Stopwatch.createStarted();
-            sendToGraphite(metrics);
-            logger.info("metrics sent to Graphite. Time: {} ms, Failed metrics: {}",
-                    sw.stop().elapsed(TimeUnit.MILLISECONDS),
-                    graphiteClient.getFailedAtLastWrite());
-
-        } catch (GraphiteClient.GraphiteWriteFailed e) {
+            metrics.forEach(m -> METRIC_REGISTRY.register(m.getName(), (Gauge<Number>) m::getValue));
+            logger.info("{} metrics sent to Graphite. Time: {} ms",
+                    metrics.size(),
+                    sw.stop().elapsed(TimeUnit.MILLISECONDS)
+            );
+        } catch (IllegalArgumentException e) {
             if (logger.isDebugEnabled()) {
-                logger.debug("Failed writing to Graphite: " + e.getMessage(), e);
+                logger.debug("Metric registration failed: " + e.getMessage(), e);
             } else {
-                logger.warn("Failed writing to Graphite: " + e.getMessage());
+                logger.warn("Metric registration failed: " + e.getMessage());
             }
         } catch (Throwable t) {
             logger.error("Unexpected error occured while polling and sending. Error = {}", t.getMessage(), t);
@@ -97,18 +98,5 @@ public class MetricsPipeline {
         return metrics.stream()
                 .map(m -> new MetricValue(m.getName(), m.getValue(), newTime))
                 .collect(Collectors.toList());
-    }
-
-    private void sendToGraphite(List<MetricValue> metrics) {
-        graphiteClient.sendMetrics(metrics);
-    }
-
-    //FIXME not called for now
-    public void close() {
-        try {
-            graphiteClient.close();
-        } catch (IOException e) {
-            logger.info("Failed closing graphite client. Error = "+e.getMessage(), e);
-        }
     }
 }
